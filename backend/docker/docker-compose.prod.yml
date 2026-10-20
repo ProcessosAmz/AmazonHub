@@ -1,0 +1,126 @@
+networks:
+  default:
+    name: komissx
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: komissx_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_DATABASE}
+    ports:
+      - "0.0.0.0:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: komissx_redis
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    ports:
+      - "0.0.0.0:6379:6379"
+    volumes:
+      - redis_data:/data
+    command: ["sh", "-c", "redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  traefik:
+    image: traefik:v3.1
+    container_name: komissx_traefik
+    restart: unless-stopped
+    command:
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
+      - --entrypoints.web.address=:3000
+      - --entrypoints.frontend.address=:8080
+      - --api.dashboard=false
+    ports:
+      - "0.0.0.0:3000:3000"
+      - "0.0.0.0:8080:8080"
+    volumes:
+      - ./traefik/dynamic:/etc/traefik/dynamic:ro
+
+  backend-blue:
+    image: ${BACKEND_IMAGE}
+    container_name: komissx_backend_blue
+    restart: unless-stopped
+    profiles: ["blue"]
+    env_file:
+      - ../.env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: ${DB_DATABASE}
+      HOST_NAME: ${HOST_NAME}
+      PORT_NEST: 3000
+      APP_VERSION: ${APP_VERSION}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      TZ: America/Manaus
+    stop_grace_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health/live || exit 1"]
+      interval: 5s
+      timeout: 8s
+      retries: 12
+      start_period: 40s
+
+  backend-green:
+    image: ${BACKEND_IMAGE}
+    container_name: komissx_backend_green
+    restart: unless-stopped
+    profiles: ["green"]
+    env_file:
+      - ../.env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: ${DB_DATABASE}
+      HOST_NAME: ${HOST_NAME}
+      PORT_NEST: 3000
+      APP_VERSION: ${APP_VERSION}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      TZ: America/Manaus
+    stop_grace_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health/live || exit 1"]
+      interval: 5s
+      timeout: 8s
+      retries: 12
+      start_period: 40s
+
+volumes:
+  postgres_data:
+  redis_data:

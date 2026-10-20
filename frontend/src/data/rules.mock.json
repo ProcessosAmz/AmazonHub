@@ -1,0 +1,42 @@
+{
+    "controle_acesso": {
+        "telas_disponiveis": [
+            {
+                "id": "mensal_cobranca",
+                "label": "Mensal - Cobrança"
+            },
+            {
+                "id": "mensal_autonomo",
+                "label": "Mensal - Autônomo"
+            },
+            {
+                "id": "mensal_comercial_pj",
+                "label": "Mensal - Comercial PJ"
+            },
+            {
+                "id": "semanal_instalacao",
+                "label": "Semanal - Instalação Técnico"
+            }
+        ],
+        "usuarios": {
+            "usuarioA@empresa.com": [
+                "mensal_cobranca",
+                "mensal_autonomo"
+            ],
+            "usuarioB@empresa.com": [
+                "mensal_comercial_pj",
+                "semanal_instalacao"
+            ],
+            "admin@empresa.com": [
+                "mensal_cobranca",
+                "mensal_autonomo",
+                "mensal_comercial_pj",
+                "semanal_instalacao"
+            ]
+        }
+    },
+    "hierarquia": {},
+    "fechamento_semanal": {
+        "tecnicos_terceirizados": {}
+    }
+}

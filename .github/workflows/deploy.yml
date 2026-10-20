@@ -1,0 +1,183 @@
+name: Deploy Komissx PROD
+
+on:
+  push:
+    branches:
+      - main
+
+# Impede execuções concorrentes que causam conflito no runner self-hosted
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      backend_image: ${{ steps.meta.outputs.backend_image }}
+      frontend_image: ${{ steps.meta.outputs.frontend_image }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Image names
+        id: meta
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          TAG="${{ github.sha }}"
+          VERSION="1.0.${{ github.run_number }}"
+          
+          echo "backend_image=ghcr.io/${OWNER}/komissx-backend:${TAG}" >> "$GITHUB_OUTPUT"
+          echo "frontend_image=ghcr.io/${OWNER}/komissx-frontend:${TAG}" >> "$GITHUB_OUTPUT"
+          echo "backend_version=ghcr.io/${OWNER}/komissx-backend:${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "frontend_version=ghcr.io/${OWNER}/komissx-frontend:${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/docker/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.backend_image }}${{ steps.meta.outputs.backend_version }}
+
+      - name: Build and push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/docker/Dockerfile
+          push: true
+          build-args: |
+            VITE_API_URL=${{ secrets.VITE_API_URL }}
+          tags: |
+            ${{ steps.meta.outputs.frontend_image }}${{ steps.meta.outputs.frontend_version }}
+
+  deploy:
+    needs: build
+    runs-on: self-hosted
+    permissions:
+      contents: read
+      packages: read
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create backend .env
+        working-directory: ./backend
+        run: |
+          $envContent = @"
+          AMAZONET_METABASE_INSTALACAO_TECNICO=${{ secrets.AMAZONET_METABASE_INSTALACAO_TECNICO }}
+          MANIA_METABASE_INSTALACAO_TECNICO=${{ secrets.MANIA_METABASE_INSTALACAO_TECNICO }}
+          METABASE_INSTALACAO_TECNICO=${{ secrets.METABASE_INSTALACAO_TECNICO }}
+          METABASE_AMZ_RETIRADA=${{ secrets.METABASE_AMZ_RETIRADA }}
+          METABASE_MANIA_RETIRADA=${{ secrets.METABASE_MANIA_RETIRADA }}
+          AMAZONET_CARD_VENDAS=${{ secrets.AMAZONET_CARD_VENDAS }}
+          MANIA_CARD_VENDAS=${{ secrets.MANIA_CARD_VENDAS }}
+          GOOGLE_PROJECT_ID=${{ secrets.GOOGLE_PROJECT_ID }}
+          GOOGLE_PRIVATE_KEY_ID=${{ secrets.GOOGLE_PRIVATE_KEY_ID }}
+          GOOGLE_PRIVATE_KEY="${{ secrets.GOOGLE_PRIVATE_KEY }}"
+          GOOGLE_CLIENT_EMAIL=${{ secrets.GOOGLE_CLIENT_EMAIL }}
+          GOOGLE_SHEET_ID_MAO_RET=${{ secrets.GOOGLE_SHEET_ID_MAO_RET }}
+          GOOGLE_SHEET_ID_REGIONAIS_RET=${{ secrets.GOOGLE_SHEET_ID_REGIONAIS_RET }}
+          GOOGLE_SHEET_NAME_MAO_RET=${{ secrets.GOOGLE_SHEET_NAME_MAO_RET }}
+          GOOGLE_SHEET_NAME_REGIONAIS_RET=${{ secrets.GOOGLE_SHEET_NAME_REGIONAIS_RET }}
+          HOST_NAME=${{ vars.HOST_NAME }}
+          PORT_NEST=${{ secrets.PORT_NEST }}
+          APP_VERSION=1.0.${{ github.run_number }}
+          TZ=America/Manaus
+          DB_HOST=postgres
+          DB_PORT=5432
+          DB_USERNAME=${{ secrets.DB_USERNAME }}
+          DB_DATABASE=${{ secrets.DB_DATABASE }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          DB_BIND_ADDRESS=${{ vars.DB_BIND_ADDRESS || '0.0.0.0' }}
+          DB_EXPOSED_PORT=${{ vars.DB_EXPOSED_PORT || '5432' }}
+          REDIS_BIND_ADDRESS=${{ vars.REDIS_BIND_ADDRESS || '0.0.0.0' }}
+          REDIS_EXPOSED_PORT=${{ vars.REDIS_EXPOSED_PORT || '6379' }}
+          BACKEND_BIND_ADDRESS=${{ vars.BACKEND_BIND_ADDRESS || '0.0.0.0' }}
+          BACKEND_EXPOSED_PORT=${{ vars.BACKEND_EXPOSED_PORT || '3000' }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          JWT_EXPIRES_IN=8h
+          REDIS_HOST=redis
+          REDIS_PORT=6379
+          REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+          CORS_ORIGINS=${{ secrets.CORS_ORIGINS }}
+          BACKEND_IMAGE=${{ needs.build.outputs.backend_image }}
+          FRONTEND_IMAGE=${{ needs.build.outputs.frontend_image }}
+          "@
+          $normalized = ($envContent -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }) -join "`n"
+          [System.IO.File]::WriteAllText("$PWD\.env", $normalized + "`n")
+
+      - name: Create frontend .env
+        working-directory: ./frontend
+        run: |
+          $envContent = @"
+          VITE_API_URL=${{ secrets.VITE_API_URL }}
+          FRONTEND_BIND_ADDRESS=${{ vars.FRONTEND_BIND_ADDRESS || '0.0.0.0' }}
+          FRONTEND_EXPOSED_PORT=${{ vars.FRONTEND_EXPOSED_PORT || '8080' }}
+          FRONTEND_IMAGE=${{ needs.build.outputs.frontend_image }}
+          "@
+          $normalized = ($envContent -split "`n" | ForEach-Object { $_.Trim() } \vert{} Where-Object {$_ -ne "" }) -join "`n"
+          [System.IO.File]::WriteAllText("$PWD\.env", $normalized + "`n")
+
+      - name: Prefer Git Bash
+        run: echo "C:\Program Files\Git\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Start infrastructure
+        working-directory: ./backend
+        run: |
+          $compose = "docker compose --env-file .env -f docker/docker-compose.prod.yml"
+          if (Select-String -Path .env -Pattern '^SKIP_DATABASE=true' -Quiet) {
+            Invoke-Expression "$compose up -d --no-recreate --wait --wait-timeout 60 redis"
+          } else {
+            Invoke-Expression "$compose up -d --no-recreate --wait --wait-timeout 60 postgres redis"
+          }
+
+      - name: Deploy backend blue-green
+        working-directory: ./backend
+        shell: bash
+        run: |
+          chmod +x docker/deploy-blue-green.sh
+          ./docker/deploy-blue-green.sh
+
+      - name: Deploy frontend blue-green
+        working-directory: ./frontend
+        shell: bash
+        run: |
+          chmod +x docker/deploy-blue-green.sh
+          ./docker/deploy-blue-green.sh
+
+      - name: Docker status
+        run: docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+      - name: Backend logs
+        working-directory: ./backend
+        run: |
+          $color = if (Select-String -Path docker/traefik/dynamic/backend.yml -Pattern "backend_green") { "green" } else { "blue" }
+          docker compose --env-file .env -f docker/docker-compose.prod.yml --profile $color logs --tail=50 "backend-$color"
+
+      - name: Frontend logs
+        working-directory: ./frontend
+        run: |
+          $color = if (Select-String -Path ../backend/docker/traefik/dynamic/frontend.yml -Pattern "frontend_green") { "green" } else { "blue" }
+          docker compose --env-file .env -f docker/docker-compose.prod.yml --profile $color logs --tail=50 "frontend-$color"

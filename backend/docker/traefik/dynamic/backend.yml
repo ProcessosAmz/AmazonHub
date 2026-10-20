@@ -1,0 +1,17 @@
+http:
+  routers:
+    backend:
+      rule: "PathPrefix(`/`)"
+      entryPoints:
+        - web
+      service: backend
+
+  services:
+    backend:
+      loadBalancer:
+        healthCheck:
+          path: /api/health/live
+          interval: "5s"
+          timeout: "3s"
+        servers:
+          - url: "http://komissx_backend_green:3000"

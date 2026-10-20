@@ -1,0 +1,32 @@
+networks:
+  default:
+    name: komissx
+    external: true
+
+services:
+
+  frontend-blue:
+    image: ${FRONTEND_IMAGE}
+    container_name: komissx_frontend_blue
+    restart: unless-stopped
+    profiles: ["blue"]
+    stop_grace_period: 15s
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  frontend-green:
+    image: ${FRONTEND_IMAGE}
+    container_name: komissx_frontend_green
+    restart: unless-stopped
+    profiles: ["green"]
+    stop_grace_period: 15s
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
