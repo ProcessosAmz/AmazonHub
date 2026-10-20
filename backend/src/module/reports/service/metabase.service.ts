@@ -49,8 +49,10 @@ export class MetaService {
       host === Host.MANIA ? METABASE_JSON_MANIA : METABASE_JSON_AMAZONET;
     const bruto =
       host === Host.MANIA
-        ? process.env.MANIA_METABASE_INSTALACAO_TECNICO
-        : process.env.AMAZONET_METABASE_INSTALACAO_TECNICO ||
+        ? process.env.METABASE_MANIA_INSTALACAO_TECNICO ||
+          process.env.MANIA_METABASE_INSTALACAO_TECNICO
+        : process.env.METABASE_AMZ_INSTALACAO_TECNICO ||
+          process.env.AMAZONET_METABASE_INSTALACAO_TECNICO ||
           process.env.METABASE_INSTALACAO_TECNICO;
     const url = toMetabaseJsonUrl(bruto || padrao);
     const hostEsperado =
@@ -143,8 +145,8 @@ export class MetaService {
 
   async vendasAutonomos(dto: RelatorioTecnicoDto): Promise<FonteMetabaseInstalacao[]> {
     const fontes = [
-      { host: Host.AMAZONET, url: process.env.AMAZONET_CARD_VENDAS },
-      { host: Host.MANIA, url: process.env.MANIA_CARD_VENDAS },
+      { host: Host.AMAZONET, url: process.env.METABASE_AMZ_AUTONOMO },
+      { host: Host.MANIA, url: process.env.METABASE_MANIA_AUTONOMO },
     ].filter((fonte) => fonte.url && (!dto.empresa || fonte.host === dto.empresa)) as { host: Host; url: string }[];
     if (!fontes.length) throw new InternalServerErrorException("Consultas Metabase de vendas não configuradas");
     const resultados = await Promise.all(fontes.map(async ({ host, url: bruto }) => {
