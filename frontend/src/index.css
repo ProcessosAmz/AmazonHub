@@ -95,20 +95,20 @@
 }
 
 @layer components {
-  .komissx-logo-img {
+  .amazonhub-logo-img {
     height: 28px;
     width: auto;
     object-fit: contain;
   }
 
   /* Quando estiver dentro do sidebar, preenche a altura do header */
-  .app-sidebar .komissx-logo-img {
+  .app-sidebar .amazonhub-logo-img {
     height: 100%;
     width: auto;
     display: block;
   }
 
-  .login-logo .komissx-logo-img {
+  .login-logo .amazonhub-logo-img {
     height: auto;
   }
 }

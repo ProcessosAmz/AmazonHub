@@ -1,6 +1,6 @@
-# KomissX — Backend
+# AmazonHub — Backend
 
-API do KomissX, construída com [NestJS](https://nestjs.com/) e TypeScript. Responsável por autenticação de contexto, regras de comissão, relatórios, permissões e consultas externas ao Metabase.
+API do AmazonHub, construída com [NestJS](https://nestjs.com/) e TypeScript. Responsável por autenticação de contexto, regras de comissão, relatórios, permissões e consultas externas ao Metabase.
 
 ## Requisitos
 

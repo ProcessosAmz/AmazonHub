@@ -1,12 +1,12 @@
 networks:
   default:
-    name: komissx
+    name: amazonhub
 
 services:
 
   postgres:
     image: postgres:16-alpine
-    container_name: komissx_postgres
+    container_name: amazonhub_postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USERNAME}
@@ -24,7 +24,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: komissx_redis
+    container_name: amazonhub_redis
     restart: unless-stopped
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
@@ -41,7 +41,7 @@ services:
 
   traefik:
     image: traefik:v3.1
-    container_name: komissx_traefik
+    container_name: amazonhub_traefik
     restart: unless-stopped
     command:
       - --providers.file.directory=/etc/traefik/dynamic
@@ -57,7 +57,7 @@ services:
 
   backend-blue:
     image: ${BACKEND_IMAGE}
-    container_name: komissx_backend_blue
+    container_name: amazonhub_backend_blue
     restart: unless-stopped
     profiles: ["blue"]
     env_file:
@@ -90,7 +90,7 @@ services:
 
   backend-green:
     image: ${BACKEND_IMAGE}
-    container_name: komissx_backend_green
+    container_name: amazonhub_backend_green
     restart: unless-stopped
     profiles: ["green"]
     env_file:

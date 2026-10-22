@@ -1,1 +1,1 @@
-export const AUTH_COOKIE_NAME = 'komissx_access_token';
+export const AUTH_COOKIE_NAME = 'amazonhub_access_token';

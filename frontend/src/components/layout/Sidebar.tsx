@@ -49,7 +49,7 @@ const NAVIGATION_ITEMS: NavigationItem[] = [
   },
 ];
 
-const STORAGE_SIDEBAR = "komissx-sidebar-recolhido";
+const STORAGE_SIDEBAR = "amazonhub-sidebar-recolhido";
 
 function lerSidebarRecolhido(): boolean {
   try {

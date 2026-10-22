@@ -26,6 +26,6 @@ export const useRules = create<RulesState>()(
             })),
             reset: () => set({ rules: mockRules as Rule[] }),
         }),
-        { name: "komissx_rules" }
+        { name: "amazonhub_rules" }
     )
 );

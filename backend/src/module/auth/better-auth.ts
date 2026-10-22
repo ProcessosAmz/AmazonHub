@@ -71,7 +71,7 @@ export const auth =
           },
         },
         advanced: {
-          cookiePrefix: "komissx",
+          cookiePrefix: "amazonhub",
         },
         user: {
           additionalFields: {

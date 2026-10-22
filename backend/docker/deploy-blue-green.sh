@@ -14,8 +14,8 @@ else
   NEW_COLOR="blue"
 fi
 
-if ! docker ps -q -f "name=^komissx_backend_blue$" | grep -q . \
-  && ! docker ps -q -f "name=^komissx_backend_green$" | grep -q .; then
+if ! docker ps -q -f "name=^amazonhub_backend_blue$" | grep -q . \
+  && ! docker ps -q -f "name=^amazonhub_backend_green$" | grep -q .; then
   NEW_COLOR="blue"
   ACTIVE_COLOR=""
 fi
@@ -27,10 +27,10 @@ if grep -qE '^SKIP_DATABASE=true' .env; then
   $COMPOSE up -d --no-recreate --wait --wait-timeout 60 redis
 else
   $COMPOSE up -d --no-recreate --wait --wait-timeout 60 postgres redis
-  docker network connect --alias postgres komissx komissx_postgres 2>/dev/null || true
+  docker network connect --alias postgres amazonhub amazonhub_postgres 2>/dev/null || true
 fi
 
-docker network connect --alias redis komissx komissx_redis 2>/dev/null || true
+docker network connect --alias redis amazonhub amazonhub_redis 2>/dev/null || true
 
 if ! docker image inspect traefik:v3.1 >/dev/null 2>&1; then
   echo "==> Pull Traefik..."
@@ -53,7 +53,7 @@ $COMPOSE --profile "$NEW_COLOR" up -d --force-recreate --no-build "backend-$NEW_
 
 echo "==> Aguardando healthcheck..."
 elapsed=0
-until [ "$(docker inspect -f '{{.State.Health.Status}}' "komissx_backend_${NEW_COLOR}")" = "healthy" ]; do
+until [ "$(docker inspect -f '{{.State.Health.Status}}' "amazonhub_backend_${NEW_COLOR}")" = "healthy" ]; do
   sleep 2
   elapsed=$((elapsed + 2))
   if [ "$elapsed" -ge "$HEALTH_TIMEOUT" ]; then
@@ -70,16 +70,16 @@ else
   $COMPOSE --profile "$NEW_COLOR" exec -T "backend-$NEW_COLOR" npm run migration:run
 fi
 
-if docker ps -aq -f "name=^komissx_backend$" | grep -q .; then
-  echo "==> Parando container legado komissx_backend (porta 3000)"
-  docker stop komissx_backend || true
-  docker rm -f komissx_backend || true
+if docker ps -aq -f "name=^amazonhub_backend$" | grep -q .; then
+  echo "==> Parando container legado amazonhub_backend (porta 3000)"
+  docker stop amazonhub_backend || true
+  docker rm -f amazonhub_backend || true
 fi
 
-if docker ps -aq -f "name=^komissx_frontend$" | grep -q .; then
-  echo "==> Parando container legado komissx_frontend (porta 8080)"
-  docker stop komissx_frontend || true
-  docker rm -f komissx_frontend || true
+if docker ps -aq -f "name=^amazonhub_frontend$" | grep -q .; then
+  echo "==> Parando container legado amazonhub_frontend (porta 8080)"
+  docker stop amazonhub_frontend || true
+  docker rm -f amazonhub_frontend || true
 fi
 
 $COMPOSE up -d traefik
@@ -102,7 +102,7 @@ http:
           interval: "5s"
           timeout: "3s"
         servers:
-          - url: "http://komissx_backend_${NEW_COLOR}:3000"
+          - url: "http://amazonhub_backend_${NEW_COLOR}:3000"
 EOF
 
 sleep "$DRAIN_SECONDS"

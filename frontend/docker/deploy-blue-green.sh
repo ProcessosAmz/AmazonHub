@@ -14,8 +14,8 @@ else
   NEW_COLOR="blue"
 fi
 
-if ! docker ps -q -f "name=^komissx_frontend_blue$" | grep -q . \
-  && ! docker ps -q -f "name=^komissx_frontend_green$" | grep -q .; then
+if ! docker ps -q -f "name=^amazonhub_frontend_blue$" | grep -q . \
+  && ! docker ps -q -f "name=^amazonhub_frontend_green$" | grep -q .; then
   NEW_COLOR="blue"
   ACTIVE_COLOR=""
 fi
@@ -36,7 +36,7 @@ $COMPOSE --profile "$NEW_COLOR" up -d --force-recreate --no-build "frontend-$NEW
 
 echo "==> Aguardando healthcheck..."
 elapsed=0
-until [ "$(docker inspect -f '{{.State.Health.Status}}' "komissx_frontend_${NEW_COLOR}")" = "healthy" ]; do
+until [ "$(docker inspect -f '{{.State.Health.Status}}' "amazonhub_frontend_${NEW_COLOR}")" = "healthy" ]; do
   sleep 2
   elapsed=$((elapsed + 2))
   if [ "$elapsed" -ge "$HEALTH_TIMEOUT" ]; then
@@ -46,10 +46,10 @@ until [ "$(docker inspect -f '{{.State.Health.Status}}' "komissx_frontend_${NEW_
   fi
 done
 
-if docker ps -aq -f "name=^komissx_frontend$" | grep -q .; then
-  echo "==> Parando container legado komissx_frontend (porta 8080)"
-  docker stop komissx_frontend || true
-  docker rm -f komissx_frontend || true
+if docker ps -aq -f "name=^amazonhub_frontend$" | grep -q .; then
+  echo "==> Parando container legado amazonhub_frontend (porta 8080)"
+  docker stop amazonhub_frontend || true
+  docker rm -f amazonhub_frontend || true
 fi
 
 echo "==> Trocando Traefik frontend para $NEW_COLOR..."
@@ -78,7 +78,7 @@ http:
           interval: "5s"
           timeout: "3s"
         servers:
-          - url: "http://komissx_frontend_${NEW_COLOR}:80"
+          - url: "http://amazonhub_frontend_${NEW_COLOR}:80"
 
     backend:
       loadBalancer:
@@ -87,7 +87,7 @@ http:
           interval: "5s"
           timeout: "3s"
         servers:
-          - url: "http://komissx_backend_${NEW_COLOR}:3000"
+          - url: "http://amazonhub_backend_${NEW_COLOR}:3000"
 EOF
 
 

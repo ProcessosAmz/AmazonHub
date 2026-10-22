@@ -1,10 +1,10 @@
-# Arquitetura do KomissX
+# Arquitetura do AmazonHub
 
 > Documento baseado na estrutura e nos arquivos versionados na branch \`main\`. Fluxos dependentes de variáveis de ambiente, serviços externos ou estado do servidor devem ser confirmados no ambiente de execução.
 
 ## 1. Visão geral
 
-O KomissX é uma aplicação web dividida em dois projetos Node.js independentes:
+O AmazonHub é uma aplicação web dividida em dois projetos Node.js independentes:
 
 - **Frontend:** React 19 + TypeScript, Vite, React Router, TanStack Query e Axios. O build gera arquivos estáticos servidos pelo Nginx.
 - **Backend:** NestJS 11 + TypeScript, Express, TypeORM e PostgreSQL. Redis é integrado por serviço próprio; autenticação usa Better Auth.
@@ -198,7 +198,7 @@ Os caminhos \`LOGIN_ROUTE\` e \`FORBIDDEN_ROUTE\` são constantes; consultar \`f
 
 ### 6.1 Containers
 
-\`backend/docker/docker-compose.prod.yml\` define a rede Docker \`komissx\`, PostgreSQL, Redis, Traefik e slots \`backend-blue\`/\`backend-green\`. \`frontend/docker/docker-compose.prod.yml\` conecta-se à mesma rede externa e define \`frontend-blue\`/\`frontend-green\`.
+\`backend/docker/docker-compose.prod.yml\` define a rede Docker \`amazonhub\`, PostgreSQL, Redis, Traefik e slots \`backend-blue\`/\`backend-green\`. \`frontend/docker/docker-compose.prod.yml\` conecta-se à mesma rede externa e define \`frontend-blue\`/\`frontend-green\`.
 
 - **Backend:** Node 22 Alpine; \`npm ci\`, build NestJS e \`npm run start:prod\`.
 - **Frontend:** build multi-stage Node 22 Alpine + Vite, seguido por Nginx 1.27 Alpine servindo \`dist\`.
@@ -215,7 +215,7 @@ Traefik usa provider de arquivos dinâmicos em \`backend/docker/traefik/dynamic/
 - **Porta 8080 / \`frontend\`:** \`PathPrefix("/api")\` tem prioridade maior e encaminha à API; \`PathPrefix("/")\` encaminha o restante ao frontend.
 - Dashboard do Traefik desabilitado na configuração versionada.
 
-**Atenção:** os arquivos dinâmicos verificados apontam para slots específicos: \`backend.yml\` aponta para \`komissx_backend_green\`; \`frontend.yml\` aponta para \`komissx_backend_blue\` e \`komissx_frontend_blue\`. Os scripts blue-green atualizam slots/arquivos. O destino real depende do estado desses arquivos no host após o deploy.
+**Atenção:** os arquivos dinâmicos verificados apontam para slots específicos: \`backend.yml\` aponta para \`amazonhub_backend_green\`; \`frontend.yml\` aponta para \`amazonhub_backend_blue\` e \`amazonhub_frontend_blue\`. Os scripts blue-green atualizam slots/arquivos. O destino real depende do estado desses arquivos no host após o deploy.
 
 ### 6.3 CI/CD
 

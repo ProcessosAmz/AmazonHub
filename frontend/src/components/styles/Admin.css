@@ -87,7 +87,7 @@ export default function Admin() {
     const [search, setSearch] = useState('');
 
     useEffect(() => {
-        const stored = localStorage.getItem('komissx_user');
+        const stored = localStorage.getItem('amazonhub_user');
         if (!stored) {
             navigate('/autenticacao');
             return;

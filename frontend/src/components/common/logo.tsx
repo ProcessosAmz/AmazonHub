@@ -10,8 +10,8 @@ export function Logo({ className = '' }: LogoProps) {
       {/* Apenas uma imagem com a classe customizada definida no index.css */}
       <img
         src={logoImg}
-        alt="KomissX Logo"
-        className="komissx-logo-img"
+        alt="AmazonHub Logo"
+        className="amazonhub-logo-img"
       />
     </div>
   );
