@@ -23,7 +23,14 @@ const aliases = {
   cliente: ["código cliente", "codigo cliente", "codigo_cliente", "cliente_id", "id_cliente", "cliente"],
   estado: ["estado", "uf", "state"],
   cidade: ["cidade", "municipio", "município"],
+  tipoOs: ["tipo_ordem_servico", "tipo ordem servico", "tipo ordem de servico", "tipo_os"],
+  usuarioFechamento: ["usuario_fechamento", "usuario fechamento", "usuario_fechamento_os"],
   vendedor: ["vendedor", "tecnico", "técnico", "nome vendedor", "colaborador", "responsavel", "responsável"],
+};
+
+const ehTipoRetirada = (tipo: string): boolean => {
+  const normalizado = normalizarTexto(tipo).toLowerCase();
+  return normalizado === "" || normalizado === "retirada de equipamento" || normalizado === "retirada de equipamentos";
 };
 
 const chave = (valor: unknown): string => String(valor ?? "").trim().toUpperCase().replace(/\\.0$/, "");
@@ -71,12 +78,14 @@ export class RetiradaService {
         codigo_cliente: ler(row, aliases.cliente),
         estado,
         cidade: ler(row, aliases.cidade) || ler((entrega && typeof entrega === "object" ? entrega : {}) as Registro, aliases.cidade),
+        tipo_ordem_servico: ler(row, aliases.tipoOs),
+        usuario_fechamento: ler(row, aliases.usuarioFechamento) || ler(row, aliases.vendedor),
         vendedor: ler(row, aliases.vendedor) || ler((entrega && typeof entrega === "object" ? entrega : {}) as Registro, aliases.vendedor),
         conta,
         encontrado_na_planilha: Boolean(entrega),
         pago: Boolean(entrega),
       };
-    }));
+    })).filter((row) => ehTipoRetirada(String(row.tipo_ordem_servico ?? "")));
 
     return {
       data,

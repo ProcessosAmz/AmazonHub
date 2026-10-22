@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { isAxiosError } from "axios";
 import { AlertCircle, CheckCircle2, CheckSquare, Download, FileText, Loader2, Plus, Search, Wrench, XCircle } from "lucide-react";
 import { jsPDF } from "jspdf";
@@ -44,24 +44,40 @@ const TECNICOS_RETIRADA = [
 ];
 const ehServicoLL = (row: RetiradaRow) =>
   [row.vendedor, row.usuario_fechamento]
-    .some((tecnico) => String(tecnico ?? "").toUpperCase().includes("_TEC_LL"));
+    .some((tecnico) => /tec[_\s-]*ll/i.test(String(tecnico ?? "")));
+
+const responsavelExibicao = (row: RetiradaRow): string =>
+  ehServicoLL(row)
+    ? "Serviços & LL"
+    : String(row.usuario_fechamento ?? row.vendedor ?? "-").trim() || "-";
 const CAMPO_DIALOG = "w-full rounded border border-slate-700 bg-slate-800 p-2 text-sm text-white";
 
 const isoHoje = new Date().toISOString().slice(0, 10);
-const isoInicioSemana = () => {
+const isoSeteDiasAtras = () => {
   const data = new Date();
-  const dia = data.getDay();
-  data.setDate(data.getDate() - (dia === 0 ? 6 : dia - 1));
+  data.setDate(data.getDate() - 7);
   return data.toISOString().slice(0, 10);
 };
 
 const moeda = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+const ehTipoRetirada = (tipo: unknown): boolean => {
+  const normalizado = String(tipo ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+
+  return normalizado === ""
+    || normalizado === "retirada de equipamento"
+    || normalizado === "retirada de equipamentos";
+};
+
 export default function Retirada() {
-  const [dataInicio, setDataInicio] = useState(isoInicioSemana());
+  const [dataInicio, setDataInicio] = useState(isoSeteDiasAtras());
   const [dataFim, setDataFim] = useState(isoHoje);
-  const [empresa, setEmpresa] = useState<"" | "amazonet" | "mania">("");
+  const [empresa, setEmpresa] = useState<"" | "amazonet" | "mania">("amazonet");
   const [busca, setBusca] = useState("");
   const [rows, setRows] = useState<RetiradaRowComStatus[]>([]);
   const [rules, setRules] = useState<Rules | null>(null);
@@ -102,7 +118,7 @@ export default function Retirada() {
 
       // 3. Confronta dados: Metabase vs Planilha
       // Se row.pago já vem true da conciliação do backend (ou campo equivalente), iniciamos como "aprovado"
-      const dadosConciliados: RetiradaRowComStatus[] = dados.map((row) => ({
+      const dadosConciliados: RetiradaRowComStatus[] = dados.filter((row) => ehTipoRetirada(row.tipo_ordem_servico)).map((row) => ({
         ...row,
         statusConciliacao: row.pago ? "aprovado" : "reprovado",
       }));
@@ -174,10 +190,10 @@ export default function Retirada() {
     documento.text(`Período: ${dataInicio} a ${dataFim} | O.S.: ${linhas.length}`, 14, 23);
     autoTable(documento, {
       startY: 28,
-      head: [["QT OS", "O.S.", "Cliente", "Estado", "Responsável", "Status", "Valor"]],
+      head: [["QT OS", "O.S.", "Cliente", "Cidade/UF", "Responsável", "Status", "Valor"]],
       body: linhas.map((row, index) => [
         String(index + 1), row.numero_ordem_servico || "-", row.codigo_cliente || "-",
-        estadoDaLinha(row), String(row.usuario_fechamento ?? "-") || "-",
+        `${row.cidade || "-"}/${estadoDaLinha(row)}`, responsavelExibicao(row),
         row.statusConciliacao.toUpperCase(), moeda(row.statusConciliacao === "reprovado" ? 0 : calcularValorRow(row)),
       ]),
       styles: { fontSize: 8 },
@@ -189,13 +205,11 @@ export default function Retirada() {
     documento.save(recibo ? "recibo-retirada.pdf" : "relatorio-retirada.pdf");
   };
 
-  // Filtro global da tabela
-  const dadosFiltrados = useMemo(() => {
-    return rows.filter((row) => {
-      const texto = `${row.numero_ordem_servico} ${row.codigo_cliente} ${row.cidade} ${row.estado} ${row.vendedor} ${String(row.usuario_fechamento ?? "")}`.toLowerCase();
-      return texto.includes(busca.toLowerCase());
-    });
-  }, [rows, busca]);
+  // Busca pelo responsável da O.S. (`usuario_fechamento`).
+  const dadosFiltrados = rows.filter((row) => {
+    const responsavel = String(row.usuario_fechamento ?? "").toLowerCase();
+    return responsavel.includes(busca.toLowerCase());
+  });
 
   // Cálculo de valor com base no estado (AM: 35, PA: 30)
   const valorPorEstado = rules?.fechamento_semanal.retirada_estado ?? REGRAS_PADRAO_RETIRADA;
@@ -215,35 +229,25 @@ export default function Retirada() {
   };
 
   // Registros elegíveis para pagamento (Aprovados ou Corrigidos)
-  const aptosAPagar = useMemo(() => {
-    return dadosFiltrados.filter(
-      (row) => row.statusConciliacao === "aprovado" || row.statusConciliacao === "corrigido"
-    );
-  }, [dadosFiltrados]);
+  const aptosAPagar = dadosFiltrados.filter(
+    (row) => row.statusConciliacao === "aprovado" || row.statusConciliacao === "corrigido"
+  );
 
-  const totalGeralPagar = useMemo(() => {
-    return aptosAPagar.reduce((sum, row) => sum + calcularValorRow(row), 0);
-  }, [aptosAPagar, valorPorEstado]);
+  const totalGeralPagar = aptosAPagar.reduce((sum, row) => sum + calcularValorRow(row), 0);
 
   // --- AGRUPAMENTO: SERVIÇOS LL (vendedor contendo 'tec_ll') ---
-  const servicosLL = useMemo(() => {
-    return dadosFiltrados.filter(ehServicoLL);
-  }, [dadosFiltrados]);
+  const servicosLL = dadosFiltrados.filter(ehServicoLL);
 
-  const aptosAPagarLL = useMemo(() => {
-    return servicosLL.filter(
-      (row) => row.statusConciliacao === "aprovado" || row.statusConciliacao === "corrigido"
-    );
-  }, [servicosLL]);
+  const aptosAPagarLL = servicosLL.filter(
+    (row) => row.statusConciliacao === "aprovado" || row.statusConciliacao === "corrigido"
+  );
 
-  const totalLLPagar = useMemo(() => {
-    return aptosAPagarLL.reduce((sum, row) => sum + calcularValorRow(row), 0);
-  }, [aptosAPagarLL, valorPorEstado]);
+  const totalLLPagar = aptosAPagarLL.reduce((sum, row) => sum + calcularValorRow(row), 0);
 
   return (
     <div className="min-h-screen space-y-6 bg-slate-950 p-6 text-slate-100">
       <div>
-        <h1 className="text-2xl font-bold">Fechamento Semanal - Retirada</h1>
+          <h1 className="text-2xl font-bold">Fechamento de instalação - Retirada</h1>
         <p className="mt-1 text-sm text-slate-400">
           Conciliação do relatório Metabase com a planilha de entregas.
         </p>
@@ -294,11 +298,11 @@ export default function Retirada() {
           </select>
         </label>
         <label className="text-xs text-slate-400">
-          Buscar
+          Buscar responsável
           <input
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
-            placeholder="OS, cliente, cidade, técnico ou usuário de fechamento"
+            placeholder="Nome do responsável ou tec_ll"
             className="mt-1 w-full rounded border border-slate-700 bg-slate-800 p-2 text-sm text-white"
           />
         </label>
@@ -367,7 +371,7 @@ export default function Retirada() {
               <th className="p-3">QT</th>
               <th className="p-3">OS</th>
               <th className="p-3">Cliente</th>
-              <th className="p-3">Estado</th>
+              <th className="p-3">Cidade/UF</th>
               <th className="p-3">Responsável</th>
               <th className="p-3">Status</th>
               <th className="p-3 text-right">Valor</th>
@@ -376,7 +380,7 @@ export default function Retirada() {
           <tbody className="divide-y divide-slate-800">
             {dadosFiltrados.map((row, index) => {
               const isLL = ehServicoLL(row);
-              const responsavel = String(row.usuario_fechamento ?? "").trim();
+              const responsavel = responsavelExibicao(row);
               const valorCalculado = calcularValorRow(row);
               const devePagar = row.statusConciliacao === "aprovado" || row.statusConciliacao === "corrigido";
 
@@ -386,7 +390,7 @@ export default function Retirada() {
                   <td className="p-3 font-mono">{row.numero_ordem_servico || "-"}</td>
                   <td className="p-3">{row.codigo_cliente || "-"}</td>
                   <td className="p-3">
-                    {estadoDaLinha(row)}
+                    {`${row.cidade || "-"}/${estadoDaLinha(row)}`}
                   </td>
                   <td className="p-3 font-medium">
                     {responsavel || "-"}
