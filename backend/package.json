@@ -95,8 +95,10 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node",
+    "setupFilesAfterEnv": ["<rootDir>/../test/jest.setup.ts"],
     "moduleNameMapper": {
-      "^@/(.*)$": "<rootDir>/$1"
+      "^@/(.*)$": "<rootDir>/$1",
+      "^better-auth/db$": "<rootDir>/../test/mocks/better-auth-db.ts"
     }
   }
 }
